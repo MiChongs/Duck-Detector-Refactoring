@@ -252,6 +252,9 @@ jobs:
         id: metadata
         shell: bash
         env:
+          ACTION_RUN_NUMBER: ${{ github.run_number }}
+          ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
           DURATION_HUMAN: ${{ steps.build.outputs.duration_human }}
           GIT_BRANCH: ${{ github.ref_name }}
           SIGNER_NAME: ${{ steps.signing_fingerprint.outputs.signer_name }}
@@ -336,14 +339,17 @@ jobs:
           commit_author=$(git log -1 --pretty=%an)
           commit_body=$(git log -1 --pretty=%b)
           git_hash=$(git rev-parse --short=8 HEAD)
-          caption=$(METADATA_JSON="${metadata_json}" COMMIT_SUBJECT="${commit_subject}" COMMIT_BODY="${commit_body}" COMMIT_AUTHOR="${commit_author}" DURATION_HUMAN="${DURATION_HUMAN}" GIT_BRANCH="${GIT_BRANCH}" GIT_HASH="${git_hash}" SIGNER_NAME="${SIGNER_NAME}" python3 - <<'PY'
+          caption=$(METADATA_JSON="${metadata_json}" COMMIT_SUBJECT="${commit_subject}" COMMIT_BODY="${commit_body}" COMMIT_AUTHOR="${commit_author}" DURATION_HUMAN="${DURATION_HUMAN}" GIT_BRANCH="${GIT_BRANCH}" GIT_HASH="${git_hash}" SIGNER_NAME="${SIGNER_NAME}" ACTION_RUN_NUMBER="${ACTION_RUN_NUMBER}" ACTION_RUN_URL="${ACTION_RUN_URL}" COMMIT_URL="${COMMIT_URL}" python3 - <<'PY'
           import json
           import os
 
           metadata = json.loads(os.environ["METADATA_JSON"])
+          action_run_number = os.environ["ACTION_RUN_NUMBER"]
+          action_run_url = os.environ["ACTION_RUN_URL"]
           commit_subject = os.environ["COMMIT_SUBJECT"]
           commit_body = os.environ["COMMIT_BODY"]
           commit_author = os.environ["COMMIT_AUTHOR"]
+          commit_url = os.environ["COMMIT_URL"]
           duration_human = os.environ["DURATION_HUMAN"]
           git_branch = os.environ["GIT_BRANCH"]
           git_hash = os.environ["GIT_HASH"]
@@ -373,6 +379,9 @@ jobs:
                   .replace(">", "&gt;")
               )
 
+          def escape_html_attribute(text: str) -> str:
+              return escape_html(text).replace('"', "&quot;")
+
           def render(subject: str, summary_text: str) -> str:
               commit_block_lines = [subject]
               if summary_text:
@@ -381,14 +390,18 @@ jobs:
               commit_block = escape_html("\n".join(commit_block_lines))
 
               lines = [
+                  "<b>Duck Detector Nightly</b>",
+                  "",
                   f"Version: <b>{escape_html(metadata['version_name'])} ({escape_html(metadata['version_code'])})</b>",
                   f"APK: <b>{escape_html(metadata['apk_name'])}</b>",
-                  "Commit:",
+                  "",
+                  f'Commit: <a href="{escape_html_attribute(commit_url)}"><code>{escape_html(git_hash)}</code></a>',
                   f"<pre>{commit_block}</pre>",
                   f"Author: <b>{escape_html(commit_author)}</b>",
-                  f"Branch: <b>{escape_html(git_branch)}@{escape_html(git_hash)}</b>",
-                  f"Build time: <b>{escape_html(duration_human)}</b>",
-                  f"Signature: <b>verified : by {escape_html(signer_name)}</b>",
+                  f"Branch: <b>{escape_html(git_branch)}</b>",
+                  f'Action: <a href="{escape_html_attribute(action_run_url)}">#{escape_html(action_run_number)}</a>',
+                  f"Build duration: <b>{escape_html(duration_human)}</b>",
+                  f"Signature: <b>verified by {escape_html(signer_name)}</b>",
               ]
               return "\n".join(lines)
 
