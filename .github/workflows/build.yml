@@ -18,6 +18,7 @@ on:
   push:
     branches:
       - master
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -84,7 +85,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          cache-read-only: ${{ github.ref_name != github.event.repository.default_branch }}
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
@@ -500,7 +501,7 @@ jobs:
           retention-days: 14
 
       - name: Prepare nightly release note
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         run: |
           set -euo pipefail
@@ -514,7 +515,7 @@ jobs:
 
       - name: Snapshot previous Nightly release assets
         id: previous_nightly_assets
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -571,7 +572,7 @@ jobs:
       - name: Update nightly APK release
         id: nightly_release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         with:
           tag_name: nightly
           target_commitish: ${{ github.sha }}
@@ -588,11 +589,12 @@ jobs:
 
       - name: Prepare Nightly update manifest
         id: update_manifest
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           APK_PATH: ${{ steps.metadata.outputs.apk_path }}
-          BUILD_BRANCH: ${{ github.ref_name }}
+          # Keep publishing the legacy value until pre-migration clients have upgraded.
+          NIGHTLY_MANIFEST_BRANCH: master
           BUILD_TIME_ISO: ${{ steps.build.outputs.build_time_iso }}
           RELEASE_ASSETS_JSON: ${{ steps.nightly_release.outputs.assets }}
           VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
@@ -671,7 +673,7 @@ jobs:
           manifest = {
               "schemaVersion": 1,
               "channel": "nightly",
-              "branch": os.environ["BUILD_BRANCH"],
+              "branch": os.environ["NIGHTLY_MANIFEST_BRANCH"],
               "versionName": os.environ["VERSION_NAME"],
               "versionCode": int(os.environ["VERSION_CODE"]),
               "commit": {
@@ -701,7 +703,7 @@ jobs:
           jq -e '
             .schemaVersion == 1 and
             .channel == "nightly" and
-            .branch == env.BUILD_BRANCH and
+            .branch == env.NIGHTLY_MANIFEST_BRANCH and
             .versionCode == (env.VERSION_CODE | tonumber) and
             .commit.sha == env.GITHUB_SHA and
             (.apk.name | test("^[^/]+\\.[Aa][Pp][Kk]$")) and
@@ -719,7 +721,7 @@ jobs:
       - name: Publish Nightly update manifest
         id: nightly_manifest_release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         with:
           tag_name: nightly
           target_commitish: ${{ github.sha }}
@@ -735,7 +737,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify published Nightly assets
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           APK_ASSET_ID: ${{ steps.update_manifest.outputs.apk_asset_id }}
@@ -841,7 +843,7 @@ jobs:
           fi
 
       - name: Delete previous Nightly release assets
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           APK_ASSET_ID: ${{ steps.update_manifest.outputs.apk_asset_id }}
@@ -944,7 +946,7 @@ jobs:
           fi
 
       - name: Move Nightly tag to published commit
-        if: github.ref == 'refs/heads/master'
+        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
