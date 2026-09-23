@@ -38,7 +38,13 @@ internal object VirtualizationProbePayloadBuilder {
                 classLoaderProvider = { classLoader },
             ).probe()
             val uidIdentityResult = UidIdentityProbe(appContext).probe()
-            val snapshot = nativeBridge.collectSnapshot()
+            // No EGL in helpers: the payload carries no EGL fields, the repository drops helper
+            // Graphics renderer findings from its comparisons, and in the isolated profile the
+            // vendor driver can SIGSEGV inside eglInitialize without GPU device access (#141).
+            // helper 不跑 EGL：payload 不含 EGL 字段，仓库比较时也会丢弃 helper 的 renderer finding；
+            // isolated 进程被 sepolicy 禁止访问 gpu_device，厂商驱动可能直接在 eglInitialize 里崩溃。
+            // https://android.googlesource.com/platform/system/sepolicy/+/refs/tags/android-16.0.0_r1/private/isolated_app_all.te
+            val snapshot = nativeBridge.collectSnapshot(probeRenderer = false)
 
             buildString {
                 appendLine("AVAILABLE=1")

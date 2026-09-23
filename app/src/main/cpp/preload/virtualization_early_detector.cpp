@@ -40,7 +40,10 @@ namespace duckdetector::preload::virtualization {
 
     EarlyVirtualizationResult run_early_detection() {
         std::lock_guard<std::mutex> lock(g_mutex);
-        const auto snapshot = duckdetector::virtualization::collect_snapshot();
+        // Preload runs from the NativeActivity in the main app process, where HWUI already uses
+        // EGL, so the renderer probe keeps its startup behavior here.
+        const auto snapshot = duckdetector::virtualization::collect_snapshot(
+                {.probeRenderer = true});
 
         EarlyVirtualizationResult result;
         result.hasRun = true;

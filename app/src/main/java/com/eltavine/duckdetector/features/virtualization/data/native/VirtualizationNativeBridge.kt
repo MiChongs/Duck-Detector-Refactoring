@@ -28,11 +28,19 @@ open class VirtualizationNativeBridge(
 
     open fun isNativeAvailable(): Boolean = DuckDetectorNativeLibrary.isLoaded
 
-    open fun collectSnapshot(): VirtualizationNativeSnapshot = collector.collect(
-        readPayload = ::nativeCollectSnapshot,
-        parse = ::parseSnapshot,
-        unavailable = { status -> VirtualizationNativeSnapshot(collection = status) },
-    )
+    /**
+     * [probeRenderer] runs the EGL renderer probe, which loads the vendor GLES driver into the
+     * calling process. Isolated processes are denied the GPU device by AOSP sepolicy and a driver
+     * can crash there instead of failing (#141), so only a caller that uses the renderer result
+     * from the main app process should pass `true`. With `false` the egl* fields stay at their
+     * defaults, which do not mean the renderer was unavailable.
+     */
+    open fun collectSnapshot(probeRenderer: Boolean): VirtualizationNativeSnapshot =
+        collector.collect(
+            readPayload = { nativeCollectSnapshot(probeRenderer) },
+            parse = ::parseSnapshot,
+            unavailable = { status -> VirtualizationNativeSnapshot(collection = status) },
+        )
 
     open fun runTimingTrap(): VirtualizationTrapResult = collectTrap(::nativeRunTimingTrap)
 
@@ -285,7 +293,7 @@ open class VirtualizationNativeBridge(
 
     private fun String?.asBool(): Boolean = NativePayloadCodec.decodeFlag(this)
 
-    private external fun nativeCollectSnapshot(): String
+    private external fun nativeCollectSnapshot(probeRenderer: Boolean): String
     private external fun nativeRunTimingTrap(): String
     private external fun nativeRunSyscallParityTrap(): String
     private external fun nativeRunAsmCounterTrap(): String
