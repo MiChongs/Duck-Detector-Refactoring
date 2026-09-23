@@ -440,7 +440,7 @@ class VirtualizationRepositoryTest {
     }
 
     @Test
-    fun `main process scan is the one snapshot that probes the renderer`() = runBlocking {
+    fun `main process scan requests renderer evidence`() = runBlocking {
         // Helpers pass probeRenderer = false (#141), so eglAvailable has to come from this call.
         val rendererRequests = mutableListOf<Boolean>()
 

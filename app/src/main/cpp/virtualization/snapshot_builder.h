@@ -49,13 +49,13 @@ namespace duckdetector::virtualization {
     };
 
     struct SnapshotOptions {
-        // The renderer probe runs eglInitialize, which loads the vendor GLES driver into the
-        // calling process. AOSP sepolicy denies isolated_app gpu_device access and pins that with a
-        // neverallow (isolated_app.te since Android 10, isolated_app_all.te since 14), and vendor
-        // drivers do not have to fail cleanly there: issue #141 is a SIGSEGV inside libEGL's
-        // egl_display_t::initialize on an isolated helper. Only callers that consume the renderer
-        // and run where the platform itself uses EGL should enable it. When it is off, the egl*
+        // EGL initialization enters the vendor GLES driver. Android 16 sepolicy denies ordinary
+        // isolated apps gpu_device access (isolated_app_all.te, except isolated_compute_app).
+        // Issue #141 reports SIGSEGV in libEGL initialization in an isolated helper; it is
+        // consistent with an invalid extension-string pointer, but its origin is unconfirmed.
+        // Enable only for main-process callers that consume renderer evidence. When off, egl*
         // fields keep their defaults and do not mean the renderer was unavailable.
+        // https://android.googlesource.com/platform/system/sepolicy/+/refs/tags/android-16.0.0_r1/private/isolated_app_all.te
         bool probeRenderer = false;
     };
 

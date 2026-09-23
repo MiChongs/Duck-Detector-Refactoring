@@ -30,10 +30,11 @@ open class VirtualizationNativeBridge(
 
     /**
      * [probeRenderer] runs the EGL renderer probe, which loads the vendor GLES driver into the
-     * calling process. Isolated processes are denied the GPU device by AOSP sepolicy and a driver
-     * can crash there instead of failing (#141), so only a caller that uses the renderer result
-     * from the main app process should pass `true`. With `false` the egl* fields stay at their
-     * defaults, which do not mean the renderer was unavailable.
+     * calling process. Android 16 AOSP sepolicy denies ordinary isolated apps GPU device access.
+     * Issue #141 reports an EGL initialization crash in an isolated helper; its exact cause is
+     * unconfirmed. Only a main-process caller that uses the renderer result should pass `true`.
+     * With `false` the egl* fields stay at their defaults, which do not mean the renderer was
+     * unavailable.
      */
     open fun collectSnapshot(probeRenderer: Boolean): VirtualizationNativeSnapshot =
         collector.collect(
